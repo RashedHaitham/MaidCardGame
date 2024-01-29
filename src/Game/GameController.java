@@ -10,7 +10,7 @@ public class GameController {
 
     private static GameController instance;
     boolean gameFinished;
-    int counter;
+    int counter=0;
     final PlayerQueue playerQueue;
     private final Object playerQueueLock ;
     private final Object gameStatusLock ;
@@ -29,84 +29,85 @@ public class GameController {
         return instance;
     }
 
-    public void playerTurn(Player currentPlayer) {
+    public void playerTurn(Player currentPlayer) throws InterruptedException {
         synchronized (playerQueueLock) {
-            while (!currentPlayer.equals(playerQueue.getCurrentPlayer())) {
-                try {
-                    playerQueueLock.wait(); // Players wait if it's not their turn
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-            }
-
-            List<Card> playerHand = currentPlayer.getCardsInHand();
-            Display.printHands();
-
-            // Check for game over and exit the turn if necessary
             if (isGameOver()) {
                 gameFinished = true;
                 return;
             }
+            System.out.println("***************************** ROUND " + ++counter + " *****************************");
+            CheckPlayers();
+            executePlayerActions(currentPlayer);
 
-            playRound();
-
-            // Handle player actions during their turn
-            if (!playerHand.isEmpty()) {
-                Card takenCard = null;
-                Player nextPlayer;
-
-                try {
-                    nextPlayer = playerQueue.getNextPlayer();
-                    if (nextPlayer == currentPlayer) {
-                        return;
-                    }
-
-                    takenCard = nextPlayer.takeRandomCard();
-                    System.out.println("Player " + currentPlayer.getPlayerID() + " took " + takenCard + " from Player " + nextPlayer.getPlayerID());
-                    if (nextPlayer.getCardsInHand().isEmpty()) {
-                        playerQueue.removeCurrentPlayer();
-                        System.out.println("Player " + nextPlayer.getPlayerID() + " has discarded all their cards and is removed from the game!");
-                        playerQueue.getNextPlayer();
-                    }
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-
-                if (takenCard != null) {
-                    boolean matched = false;
-                    for (int i = 0; i < playerHand.size(); i++) {
-                        Card playerCard = playerHand.get(i);
-                        if (playerCard != null && takenCard.matches(playerCard)) {
-                            System.out.println("Player " + currentPlayer.getPlayerID() + " matched " + takenCard + " with " + playerCard + " and discarded both");
-                            playerHand.remove(i);
-                            matched = true;
-                            break;
-                        }
-                    }
-
-                    if (!matched) {
-                        playerHand.add(takenCard);
-                    }
-                }
-                if (currentPlayer.getCardsInHand().isEmpty()) {
-                    Player player = playerQueue.removePlayerByID(currentPlayer.getPlayerID());
-                    System.out.println("Player " + player.getPlayerID() + " has discarded all their cards and is removed from the game!");
-                    playerQueue.getNextPlayer();
-                }
-            }
             playerQueueLock.notifyAll();
         }
     }
 
-    public void playRound() {
+    private void executePlayerActions(Player currentPlayer) throws InterruptedException {
+        List<Card> playerHand = currentPlayer.getCardsInHand();
+        Display.printHands();
+
+        if (playerHand.isEmpty()) return;
+
+        Player nextPlayer = getNextPlayer(currentPlayer);
+        if (nextPlayer == null) return;
+
+        Card takenCard = takeCardFromNextPlayer(nextPlayer, currentPlayer);
+        if (takenCard != null) {
+            processTakenCard(currentPlayer, playerHand, takenCard);
+        }
+
+        checkAndRemovePlayerIfHandEmpty(currentPlayer);
+    }
+
+    private Player getNextPlayer(Player currentPlayer) {
+        Player nextPlayer = playerQueue.getNextPlayer();
+        if (nextPlayer == currentPlayer) return null;
+        return nextPlayer;
+    }
+
+    private Card takeCardFromNextPlayer(Player nextPlayer, Player currentPlayer) throws InterruptedException {
+        Card takenCard = nextPlayer.takeRandomCard();
+        System.out.println("Player " + currentPlayer.getPlayerID() + " took " + takenCard + " from Player " + nextPlayer.getPlayerID());
+        if (nextPlayer.getCardsInHand().isEmpty()) {
+            playerQueue.removeCurrentPlayer();
+            System.out.println("Player " + nextPlayer.getPlayerID() + " has discarded all their cards and is removed from the game!");
+            playerQueue.getNextPlayer();
+        }
+        return takenCard;
+    }
+
+    private void processTakenCard(Player currentPlayer, List<Card> playerHand, Card takenCard) {
+        boolean matched = false;
+        for (int i = 0; i < playerHand.size(); i++) {
+            Card playerCard = playerHand.get(i);
+            if (playerCard != null && takenCard.matches(playerCard)) {
+                System.out.println("Player " + currentPlayer.getPlayerID() + " matched " + takenCard + " with " + playerCard + " and discarded both");
+                playerHand.remove(i);
+                matched = true;
+                break;
+            }
+        }
+
+        if (!matched) {
+            playerHand.add(takenCard);
+        }
+    }
+
+    private void checkAndRemovePlayerIfHandEmpty(Player currentPlayer) {
+        if (currentPlayer.getCardsInHand().isEmpty()) {
+            Player player = playerQueue.removePlayerByID(currentPlayer.getPlayerID());
+            System.out.println("Player " + player.getPlayerID() + " has discarded all their cards and is removed from the game!");
+            playerQueue.getNextPlayer();
+        }
+    }
+
+    public void CheckPlayers() {
         synchronized (playerQueueLock) {
             if (isGameOver()) {
                 return;
             }
-            System.out.println("***************************** ROUND " + ++counter + " *****************************");
-            int playerSize = playerQueue.size();
-            for (int i = 0; i < playerSize; i++) {
+            for (int i = 0; i < playerQueue.size(); i++) {
                 Player player = playerQueue.removeCurrentPlayer();
                 if (!player.getCardsInHand().isEmpty()) {
                     playerQueue.getQueue().add(player); // Only add to the queue when a player can play again

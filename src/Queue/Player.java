@@ -1,7 +1,9 @@
 package Queue;
 
 import Cards.Card;
+import Exceptions.PlayerNotFoundException;
 import Game.*;
+import utility.Display;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -48,7 +50,6 @@ public class Player implements Runnable {
     public void run() {
         synchronized (lock) {
             while (playerQueue.size() > 1) {
-                System.out.println(this.playerID);
                 while (!playerQueue.isCurrentPlayer(this)&&!gameController.isGameOver()) {
                     try {
                         lock.wait();
@@ -58,10 +59,13 @@ public class Player implements Runnable {
                     }
                 }
                 if (!hand.isEmpty()) {
-                    gameController.playerTurn(this);
+                    try {
+                        gameController.playerTurn(this);
+                    } catch (InterruptedException e) {
+                        throw new PlayerNotFoundException("no such player");
+                    }
                     lock.notifyAll();
                 }
-
                 if (gameController.isGameOver()) {
                     lock.notifyAll();
                     return;

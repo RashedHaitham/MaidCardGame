@@ -13,6 +13,7 @@ public abstract class Game {
         playerQueue.initializeQueue();
         dealCardsToPlayers();
         startWithPlayer();
+
     }
 
     protected void startWithPlayer() {

@@ -47,8 +47,8 @@ public class PlayerQueue {
                 input.next(); // Clear the invalid input
             }
         }
-        for (int i = 0; i < numberOfPlayers; i++) {
-            players.add(new Player(i + 1, lock));
+        for (int i = numberOfPlayers; i > 0; i--) {
+            players.add(new Player(i , lock));
         }
         input.close();
     }
@@ -101,7 +101,6 @@ public class PlayerQueue {
     }
 
     public synchronized Player getNextPlayer() {
-        
         if (players.isEmpty()) {
            throw new PlayerNotFoundException("the queue is empty");
         }
