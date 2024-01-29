@@ -1,9 +1,9 @@
 package Queue;
 
 import Cards.Card;
+import Exceptions.DeckEmptyException;
 import Exceptions.PlayerNotFoundException;
 import Game.*;
-import utility.Display;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -30,9 +30,9 @@ public class Player implements Runnable {
         return playerID;
     }
 
-    public synchronized Card takeRandomCard() throws InterruptedException {
+    public synchronized Card takeRandomCard() {
         if (hand.isEmpty()) {
-            throw new IllegalStateException("Hand is empty.");
+            throw new DeckEmptyException("Hand is empty.");
         }
         Random random = new Random();
         return hand.remove(random.nextInt(hand.size()));
@@ -52,7 +52,7 @@ public class Player implements Runnable {
             while (playerQueue.size() > 1) {
                 while (!playerQueue.isCurrentPlayer(this)&&!gameController.isGameOver()) {
                     try {
-                        lock.wait();
+                        lock.wait(); // wait for player turn
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt(); // Preserve interrupt status
                         return;
@@ -64,11 +64,10 @@ public class Player implements Runnable {
                     } catch (InterruptedException e) {
                         throw new PlayerNotFoundException("no such player");
                     }
-                    lock.notifyAll();
                 }
+                lock.notifyAll();
                 if (gameController.isGameOver()) {
-                    lock.notifyAll();
-                    return;
+                    break;
                 }
             }
         }

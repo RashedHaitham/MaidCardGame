@@ -8,8 +8,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class MaidGame extends Game {
-    public MaidGame() {
+public class AutoGame extends Game {
+    public AutoGame() {
         playerQueue = PlayerQueue.getInstance();
         deck = Deck.getInstance();
         initializeGame();
@@ -21,8 +21,11 @@ public class MaidGame extends Game {
 
         ExecutorService exc= Executors.newFixedThreadPool(playerQueue.getQueue().size());
 
-        for (Player player : playerQueue.getQueue())
+        playerQueue.startIteration();
+        for (Player player : playerQueue.getQueue()) {
             exc.execute(player);
+        }
+        playerQueue.endIteration();
 
         exc.shutdown();
 
@@ -32,7 +35,6 @@ public class MaidGame extends Game {
                 System.out.println("Some players have not finished yet, forcing shutdown...");
                 exc.shutdownNow();
                 System.out.println("Game finished, with shutdown");
-
             }
         } catch (InterruptedException e) {
             exc.shutdownNow();

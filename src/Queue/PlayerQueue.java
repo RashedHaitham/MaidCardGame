@@ -6,14 +6,16 @@ import Exceptions.PlayerNotFoundException;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class PlayerQueue {
     private static PlayerQueue instance;
     private final Queue<Player> players;
     private Player currentPlayer;
+    private boolean isIterating = false;
+    private final Object IteratingLock = new Object();
     private final Object lock;
-
     private PlayerQueue(){
         players = new LinkedList<>();
         lock = new Object();
@@ -39,11 +41,9 @@ public class PlayerQueue {
             try {
                 numberOfPlayers = input.nextInt();
                 if (numberOfPlayers < 2 || numberOfPlayers > 8) {
-                    //System.out.println("Invalid number of players. Please enter a number between 2 and 8.");
-                    throw new InvalidInputException("Invalid number of players. Please enter a number between 2 and 8.");
-                }
+                    throw new InvalidInputException("2-8 only");                }
             } catch (InvalidInputException e) {
-                System.out.println("Invalid input. Please enter a number.");
+                System.out.println("Invalid number of players. Please enter a number between 2 and 8.");
                 input.next(); // Clear the invalid input
             }
         }
@@ -52,25 +52,42 @@ public class PlayerQueue {
         }
         input.close();
     }
-
-
     public boolean isCurrentPlayer(Player player) {
         return player.equals(currentPlayer);
     }
-
-
+    public void startIteration() {
+            isIterating = true;
+    }
+    public void endIteration() {
+        synchronized (IteratingLock) {
+            isIterating = false;
+            IteratingLock.notifyAll();
+        }
+    }
     public void notifyAllPlayers() {
         synchronized (lock) {
             lock.notifyAll();
         }
     }
-
-    public Queue<Player> getQueue(){
-        return  players;
+    public void addPlayer(Player player) throws InterruptedException {
+        synchronized (IteratingLock) {
+            while (isIterating) {
+                IteratingLock.wait();
+            }
+            players.add(player);
+        }
     }
 
-    public synchronized Player removeCurrentPlayer() {
-        return players.poll();
+    public Player removePlayer() throws InterruptedException {
+        synchronized (IteratingLock) {
+            while (isIterating) {
+                IteratingLock.wait();
+            }
+            return players.poll();
+        }
+    }
+    public synchronized Queue<Player> getQueue(){
+        return players;
     }
 
     public synchronized void setCurrentPlayer(Player player) {
@@ -100,11 +117,11 @@ public class PlayerQueue {
         return this.currentPlayer;
     }
 
-    public synchronized Player getNextPlayer() {
+    public synchronized Player getNextPlayer() throws InterruptedException {
         if (players.isEmpty()) {
-           throw new PlayerNotFoundException("the queue is empty");
+           throw new PlayerNotFoundException("No Players Found.");
         }
-        Player currentPlayer = players.remove();
+        Player currentPlayer = removePlayer();
         players.add(currentPlayer);
         Player nextPlayer = players.peek();
         setCurrentPlayer(nextPlayer);

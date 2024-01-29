@@ -12,13 +12,13 @@ public abstract class Game {
         playerQueue = PlayerQueue.getInstance();
         playerQueue.initializeQueue();
         dealCardsToPlayers();
-        startWithPlayer();
-
+        StartWith();
     }
 
-    protected void startWithPlayer() {
+    protected void StartWith() {
         Player startingPlayer = playerQueue.getPlayerByID(playerQueue.size());
         playerQueue.setCurrentPlayer(startingPlayer);
+        //playerQueue.setCurrentPlayerID(playerQueue.getCurrentPlayer().getPlayerID());
     }
 
     public synchronized static void dealCardsToPlayers() {
